@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gemini Auto-Listen</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+
+    <header class="popup-header">
+      <!-- Speaker-wave icon (inline SVG, no external file needed) -->
+      <svg class="popup-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+           fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round" aria-hidden="true">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      </svg>
+      <h1 class="popup-title">Auto-Listen</h1>
+    </header>
+
+    <!-- Main Toggle ---------------------------------------------------------->
+    <div class="setting-row setting-row--primary">
+      <div class="setting-info">
+        <label class="setting-label" for="toggle-enabled">Auto-play responses</label>
+        <span class="setting-desc">Reads new responses aloud automatically</span>
+      </div>
+      <label class="toggle-switch" for="toggle-enabled" aria-label="Enable or disable auto-listen">
+        <input type="checkbox" id="toggle-enabled" role="switch">
+        <span class="toggle-track" aria-hidden="true">
+          <span class="toggle-thumb"></span>
+        </span>
+      </label>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Min Word Count ----------------------------------------------------->
+    <div class="setting-row" id="row-min-words">
+      <div class="setting-info">
+        <label class="setting-label" for="input-min-words">Skip short responses</label>
+        <span class="setting-desc">Don't read if under this many words</span>
+      </div>
+      <input
+        type="number"
+        id="input-min-words"
+        class="number-input"
+        min="0"
+        max="500"
+        step="1"
+        aria-label="Minimum word count"
+      >
+    </div>
+
+    <footer class="popup-footer">
+      <span id="status-msg" class="status-msg" aria-live="polite"></span>
+    </footer>
+
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
