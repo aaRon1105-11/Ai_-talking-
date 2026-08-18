@@ -53,9 +53,11 @@
 
 /** Direct "Listen" buttons visible in the action bar (no menu needed). */
 const LISTEN_BUTTON_SELECTORS = [
+  'button[aria-label*="Listen" i]',
   'button[aria-label="Listen to response"]',
   'button[aria-label="Listen"]',
   'button[aria-label="Read aloud"]',
+  'button[aria-label*="Read aloud" i]',
   'button[aria-label="Play"]',
 ];
 
@@ -172,42 +174,85 @@ chrome.storage.onChanged.addListener((changes, area) => {
   }
 });
 
-// ─── SELECTOR UTILITIES ──────────────────────────────────────────────────────
+// ─── SHADOW DOM TRAVERSAL ────────────────────────────────────────────────────
+// Gemini uses Shadow DOM (Web Components) extensively. Standard querySelector
+// cannot pierce shadow boundaries, so we recursively walk all open shadow roots.
 
 /**
- * Returns the first match for any selector in the array, trying each
- * individually so one malformed selector cannot abort the rest.
- * @param {string[]} selectors
- * @param {Element|Document} [root=document]
+ * Recursively query for the FIRST element matching `selector` by traversing
+ * open shadow roots. Returns null if nothing matches.
+ * @param {string} selector
+ * @param {Element|Document|ShadowRoot} root
  * @returns {Element|null}
  */
-function queryAny(selectors, root = document) {
-  for (const sel of selectors) {
-    try {
-      const el = root.querySelector(sel);
-      if (el) return el;
-    } catch (_) {
-      // Malformed selector — try the next one.
+function deepQuerySelector(selector, root = document) {
+  try {
+    const el = root.querySelector(selector);
+    if (el) return el;
+  } catch (_) { /* malformed selector */ }
+
+  // Recurse into all open shadow roots found under `root`.
+  const hosts = root.querySelectorAll('*');
+  for (const host of hosts) {
+    if (host.shadowRoot) {
+      const found = deepQuerySelector(selector, host.shadowRoot);
+      if (found) return found;
     }
   }
   return null;
 }
 
 /**
+ * Recursively query for ALL elements matching `selector` by traversing
+ * open shadow roots.
+ * @param {string} selector
+ * @param {Element|Document|ShadowRoot} root
+ * @returns {Element[]}
+ */
+function deepQuerySelectorAll(selector, root = document) {
+  let results = [];
+  try {
+    results = Array.from(root.querySelectorAll(selector));
+  } catch (_) { /* malformed selector */ }
+
+  const hosts = root.querySelectorAll('*');
+  for (const host of hosts) {
+    if (host.shadowRoot) {
+      results = results.concat(deepQuerySelectorAll(selector, host.shadowRoot));
+    }
+  }
+  return results;
+}
+
+// ─── SELECTOR UTILITIES ──────────────────────────────────────────────────────
+
+/**
+ * Returns the first match for any selector in the array, trying each
+ * individually so one malformed selector cannot abort the rest.
+ * Now uses deepQuerySelector to pierce Shadow DOM boundaries.
+ * @param {string[]} selectors
+ * @param {Element|Document} [root=document]
+ * @returns {Element|null}
+ */
+function queryAny(selectors, root = document) {
+  for (const sel of selectors) {
+    const el = deepQuerySelector(sel, root);
+    if (el) return el;
+  }
+  return null;
+}
+
+/**
  * Returns all matches for the first selector in the array that yields results,
- * trying each individually.
+ * trying each individually. Now uses deepQuerySelectorAll to pierce Shadow DOM.
  * @param {string[]} selectors
  * @param {Element|Document} [root=document]
  * @returns {Element[]}
  */
 function queryAllAny(selectors, root = document) {
   for (const sel of selectors) {
-    try {
-      const els = Array.from(root.querySelectorAll(sel));
-      if (els.length > 0) return els;
-    } catch (_) {
-      // Malformed selector — try the next one.
-    }
+    const els = deepQuerySelectorAll(sel, root);
+    if (els.length > 0) return els;
   }
   return [];
 }
@@ -280,17 +325,16 @@ function countWords(block) {
 }
 
 /**
- * FIX 4: Search for a "Listen" menu item scoped to the open [role="menu"]
- * element rather than the full document, preventing a match on stale or
- * unrelated menus.
+ * FIX 4 + Shadow DOM: Search for a "Listen" menu item scoped to the open
+ * [role="menu"] element. Uses deep queries to pierce Shadow DOM.
  *
  * Falls back to a text-content scan within the menu if ARIA selectors miss.
  *
  * @returns {Element|null}
  */
 function findListenMenuItem() {
-  // Prefer the specific open menu if one is present.
-  const openMenu = document.querySelector('[role="menu"]');
+  // Prefer the specific open menu if one is present (may be in Shadow DOM).
+  const openMenu = deepQuerySelector('[role="menu"]');
   const searchRoot = openMenu ?? document;
 
   // 1. Try ARIA-label selectors.
@@ -298,9 +342,9 @@ function findListenMenuItem() {
   if (byAriaLabel) return byAriaLabel;
 
   // 2. Text-content fallback: scan all menu items for "listen" or "read aloud".
-  const allItems = Array.from(searchRoot.querySelectorAll(
-    '[role="menuitem"], [role="option"]'
-  ));
+  const allItems = deepQuerySelectorAll(
+    '[role="menuitem"], [role="option"]', searchRoot
+  );
   return allItems.find(el => {
     const label = (el.getAttribute('aria-label') || el.textContent || '').toLowerCase();
     return label.includes('listen') || label.includes('read aloud');
@@ -381,7 +425,7 @@ async function tryMenuListenItem(turnContainer) {
 
   // Give the menu time to self-close, then force-dismiss if still open.
   await sleep(150);
-  if (document.querySelector('[role="menu"]')) {
+  if (deepQuerySelector('[role="menu"]')) {
     console.log('[Auto-Listen] Menu still open after item click — dismissing.');
     // FIX 5: body click is more reliable than Escape on `document`.
     document.body.click();
@@ -556,7 +600,7 @@ function startStopButtonSentinel() {
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
 
 (async function init() {
-  console.log('[Auto-Listen] v1.1.0 initializing on', location.href);
+  console.log('[Auto-Listen] v1.2.0 initializing on', location.href);
   await loadSettings();
   tagExistingBlocks();   // FIX 3: tag pre-existing blocks before observing.
   startObserver();
