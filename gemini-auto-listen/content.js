@@ -314,14 +314,35 @@ function getTurnContainer(responseBlock) {
 }
 
 /**
- * Counts words in a response block's visible text.
+ * Collect text from an element including open Shadow DOM. Host innerText does
+ * not include shadow-tree text, which is where Gemini renders the model reply.
+ * @param {Node} node
+ * @returns {string}
+ */
+function collectDeepText(node) {
+  if (!node) return '';
+  if (node.nodeType === Node.TEXT_NODE) return node.textContent || '';
+
+  let parts = '';
+  if (node.nodeType === Node.ELEMENT_NODE && node.shadowRoot) {
+    parts += collectDeepText(node.shadowRoot);
+  }
+  const children = node.childNodes || [];
+  for (const child of children) {
+    parts += ' ' + collectDeepText(child);
+  }
+  return parts;
+}
+
+/**
+ * Counts words in a response block's visible text, including open Shadow DOM.
  * @param {Element} block  A <model-response> or equivalent.
  * @returns {number}
  */
 function countWords(block) {
-  const text = (block.innerText || block.textContent || '').trim();
-  if (!text) return 0;
-  return text.split(/\s+/).filter(Boolean).length;
+  const deepText = collectDeepText(block).trim();
+  if (!deepText) return 0;
+  return deepText.split(/\s+/).filter(Boolean).length;
 }
 
 /**
