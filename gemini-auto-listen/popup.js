@@ -40,10 +40,10 @@ function showStatus(text) {
 function setRowDisabledState(enabled) {
   if (enabled) {
     rowMinWords.classList.remove('setting-row--disabled');
-    inputMinWords.removeAttribute('disabled');
+    inputMinWords.disabled = false;
   } else {
     rowMinWords.classList.add('setting-row--disabled');
-    inputMinWords.setAttribute('disabled', 'true');
+    inputMinWords.disabled = true;
   }
 }
 
@@ -92,10 +92,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveSettings();
   });
 
-  // Save on blur (leaving the field) or Enter key to avoid hammering storage
-  // on every keystroke.
+  // Save on change/blur/Enter key.
+  inputMinWords.addEventListener('change',  saveSettings);
   inputMinWords.addEventListener('blur',    saveSettings);
   inputMinWords.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') inputMinWords.blur();
   });
 });
+

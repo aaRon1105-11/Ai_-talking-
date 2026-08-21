@@ -1,4 +1,4 @@
-# Gemini Auto-Listen — Chrome Extension · v1.1.0
+# Gemini Auto-Listen — Chrome Extension · v1.2.0
 
 Automatically triggers the built-in **Listen** (text-to-speech) feature on [gemini.google.com](https://gemini.google.com) when a new response finishes generating, mimicking the auto-play behaviour on mobile.
 
